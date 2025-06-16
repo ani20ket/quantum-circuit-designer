@@ -17,35 +17,29 @@ def main():
         "data": graph
     }
 
-    # 1. Parse input
     parsed = parse_input(user_input)
     problem_type = parsed["type"]
     problem_obj = parsed["problem"]
 
-    # 2. Handle different problem types
     if problem_type in ["tsp", "maxcut", "knapsack", "vertex_cover"]:
         qp = problem_obj.to_quadratic_program()
         algorithm = select_algorithm(problem_type)
 
-        # Force circuit generation
         _ = MinimumEigenOptimizer(algorithm).solve(qp)
 
-        # 3. Build and optimize circuit
         circuit = build_circuit(algorithm)
         optimized = optimize_for_backend(circuit)
 
-        # 4. Save circuit image
         optimized.draw(output='mpl')
         plt.title("Optimized Quantum Circuit")
         plt.tight_layout()
         plt.savefig("optimized_circuit.png")
         plt.close()
 
-        # 5. Solve and display result
         result = solve_problem(qp, algorithm)
         solution = format_result(result, problem_obj)
 
-        print("\n✅ Solution:")
+        print("\nSolution:")
         print("Path or Binary Output:", solution["path"])
         print("Cost:", solution["cost"])
 

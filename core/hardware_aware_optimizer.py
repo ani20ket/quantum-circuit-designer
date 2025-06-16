@@ -11,12 +11,16 @@ def optimize_for_backend(circuit, backend=None):
     Returns:
         QuantumCircuit: Transpiled and optimized circuit.
     """
+    print("Before Optimization Summary:")
+    print("Gate Count:", circuit.count_ops())
+    print("Depth:", circuit.depth())
+
     if backend:
         transpiled = transpile(circuit, backend=backend, optimization_level=3)
     else:
         transpiled = transpile(circuit, basis_gates=['u3', 'cx'], optimization_level=3)
 
-    print("🧠 Hardware-Aware Optimization Summary:")
+    print("Hardware-Aware Optimization Summary:")
     print("Gate Count:", transpiled.count_ops())
     print("Depth:", transpiled.depth())
 
