@@ -28,6 +28,12 @@ def main():
         _ = MinimumEigenOptimizer(algorithm).solve(qp)
 
         circuit = build_circuit(algorithm)
+        circuit.decompose().decompose().draw(output='mpl')
+        plt.title("Before Optimization")
+        plt.tight_layout()
+        plt.savefig("before_optimization.png")
+        plt.close()
+
         optimized = optimize_for_backend(circuit)
 
         optimized.draw(output='mpl')
