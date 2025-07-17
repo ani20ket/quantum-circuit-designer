@@ -1,6 +1,5 @@
-from qiskit_optimization.applications import Tsp, Maxcut, Knapsack, VertexCover
-import networkx as nx
-import numpy as np
+from qiskit_optimization.applications import Tsp, Maxcut, Knapsack
+
 
 def parse_input(user_input):
     problem_type = user_input["problem_type"]
@@ -20,24 +19,6 @@ def parse_input(user_input):
         max_weight = data["max_weight"]
         knapsack = Knapsack(values, weights, max_weight)
         return {"type": "knapsack", "problem": knapsack}
-
-    elif problem_type == "portfolio":
-        maxcut = Maxcut(data)
-        return {"type": "maxcut", "problem": maxcut}
-
-    elif problem_type == "vertex_cover":
-        vc = VertexCover(data)
-        return {"type": "vertex_cover", "problem": vc}
-
-    elif problem_type == "eigenvalue":
-        # Assumes input is already a Hamiltonian (SummedOp)
-        return {"type": "eigenvalue", "problem": data}
-
-    elif problem_type == "oracle_search":
-        return {"type": "oracle_search", "problem": data}
-
-    elif problem_type == "custom":
-        return {"type": "custom", "problem": data}
 
     else:
         raise ValueError(f"Unknown problem type: {problem_type}")

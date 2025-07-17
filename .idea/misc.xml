@@ -3,5 +3,5 @@
   <component name="Black">
     <option name="sdkName" value="qiskit-tsproj" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="qiskit-tsproj" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="diss" project-jdk-type="Python SDK" />
 </project>
