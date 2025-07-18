@@ -1,9 +1,8 @@
 from qiskit import transpile
 from qiskit.providers.backend import Backend
 from qiskit.transpiler.exceptions import TranspilerError
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, depolarizing_error
 import random
+
 
 def evaluate_circuit(circuit, backend: Backend, optimization_level: int = 3) -> dict:
     result = {}
@@ -17,56 +16,37 @@ def evaluate_circuit(circuit, backend: Backend, optimization_level: int = 3) -> 
         result["size"] = transpiled.size()
         result["num_qubits"] = transpiled.num_qubits
 
-        # Attempt estimated error (might fail if no properties)
+        # Accurate error breakdown
         try:
             props = backend.properties()
-            total_error = 0.0
-            for gate, count in transpiled.count_ops().items():
-                gate_errors = [
-                    g.error
-                    for g in props.gates
-                    if g.gate == gate and hasattr(g, 'error')
-                ]
-                avg_error = sum(gate_errors) / len(gate_errors) if gate_errors else 0
-                total_error += count * avg_error
-            result["estimated_error"] = round(total_error, 5)
+            one_q_error = 0.0
+            two_q_error = 0.0
+            one_q_count = 0
+            two_q_count = 0
+
+            for instr, qargs, _ in transpiled.data:
+                gate_name = instr.name
+                qubits = [q.index for q in qargs]
+
+                try:
+                    gate_prop = props.gate_error(gate_name, qubits)
+                    if len(qubits) == 1:
+                        one_q_error += gate_prop
+                        one_q_count += 1
+                    elif len(qubits) == 2:
+                        two_q_error += gate_prop
+                        two_q_count += 1
+                except Exception:
+                    continue
+
+            result["error_breakdown"] = {
+                "1-qubit": round(one_q_error, 5),
+                "2-qubit": round(two_q_error, 5),
+            }
+            result["estimated_error"] = round(one_q_error + two_q_error, 5)
         except Exception:
             result["estimated_error"] = "Unavailable"
-
-        # Always simulate with noise
-        try:
-            noise_model = NoiseModel()
-            noise_model.add_all_qubit_quantum_error(depolarizing_error(0.3, 1), ['rz', 'sx'])
-            noise_model.add_all_qubit_quantum_error(depolarizing_error(0.4, 2), ['cx'])
-
-            coupling_map = [[i, i + 1] for i in range(transpiled.num_qubits - 1)]
-
-            simulator = AerSimulator()
-
-            # Bind parameters if circuit has any
-            if transpiled.parameters:
-                param_bindings = {param: random.uniform(0, 2 * 3.1416) for param in transpiled.parameters}
-                transpiled = transpiled.bind_parameters(param_bindings)
-
-            job = simulator.run(
-                transpiled,
-                shots=1024,
-                noise_model=noise_model,
-                basis_gates=['rz', 'sx', 'cx'],
-                coupling_map=coupling_map
-            )
-
-            sim_result = job.result()
-            counts = sim_result.get_counts()
-
-            total_shots = sum(counts.values())
-            most_common = max(counts, key=counts.get)
-            error_rate = 1 - (counts[most_common] / total_shots)
-
-            result["simulated_error_rate"] = round(error_rate, 5)
-
-        except Exception as e:
-            result["simulated_error_rate"] = f"SimError: {str(e)}"
+            result["error_breakdown"] = {"1-qubit": "Unavailable", "2-qubit": "Unavailable"}
 
     except TranspilerError as e:
         result.update({
@@ -77,7 +57,7 @@ def evaluate_circuit(circuit, backend: Backend, optimization_level: int = 3) -> 
             "size": "N/A",
             "num_qubits": "Too many",
             "estimated_error": "Unsupported",
-            "simulated_error_rate": "Unsupported",
+            "error_breakdown": {"1-qubit": "Unsupported", "2-qubit": "Unsupported"},
             "error_msg": str(e)
         })
 

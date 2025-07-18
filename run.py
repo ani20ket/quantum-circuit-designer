@@ -3,22 +3,22 @@ from core.algorithm_selector import select_algorithm
 from core.solver import solve_problem
 from core.output_formatter import format_result
 from core.evaluate_circuit import evaluate_circuit
-from qiskit_aer import AerSimulator
 import random
 import warnings
 warnings.filterwarnings("ignore")
 
 from qiskit.providers.fake_provider import FakeLima, FakeManhattan, FakeJakarta
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 def main():
     problem_types = ["maxcut", "tsp", "knapsack"]
 
     backends = {
-        "FakeLima": AerSimulator.from_backend(FakeLima()),
-        "FakeManhattan": AerSimulator.from_backend(FakeManhattan()),
-        "FakeJakarta": AerSimulator.from_backend(FakeJakarta()),
+        "FakeLima": FakeLima(),
+        "FakeManhattan": FakeManhattan(),
+        "FakeJakarta": FakeJakarta(),
     }
 
     results = []
@@ -52,12 +52,14 @@ def main():
             eval_result = evaluate_circuit(circuit, backend)
             eval_result.update({
                 "problem": problem_type,
-                "backend": backend_name
+                "backend": backend_name,
+                "1Q Error": eval_result.get("error_breakdown", {}).get("1-qubit", None),
+                "2Q Error": eval_result.get("error_breakdown", {}).get("2-qubit", None)
             })
             results.append(eval_result)
 
             if eval_result["transpiled_circuit"]:
-                print(f"[{problem_type} on {backend_name}] - depth: {eval_result['depth']}, error: {eval_result['simulated_error_rate']}")
+                print(f"[{problem_type} on {backend_name}] - depth: {eval_result['depth']}, error: {eval_result['estimated_error']}")
             else:
                 print(f"[{problem_type} on {backend_name}] - Unsupported: {eval_result['error_msg']}")
 
@@ -68,9 +70,23 @@ def main():
                 plt.savefig(f"{problem_type}_{backend_name}.png")
                 plt.close()
 
+    # Output summary
+    df = pd.DataFrame(results)
     print("\nSummary:")
-    for r in results:
-        print(f"{r['problem']} on {r['backend']}: depth={r['depth']}, error={r['simulated_error_rate']}, gates={r['gate_count']}")
+    print(df[["problem", "backend", "depth", "estimated_error", "1Q Error", "2Q Error", "gate_count"]])
+
+    df.to_csv("evaluation_summary.csv", index=False)
+
+    # Filter and plot valid error values only
+    df = df[pd.to_numeric(df["1Q Error"], errors="coerce").notnull()]
+    df["1Q Error"] = df["1Q Error"].astype(float)
+    df["2Q Error"] = df["2Q Error"].astype(float)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    df.plot(kind='bar', x='problem', y=['1Q Error', '2Q Error'], ax=ax, title="1Q vs 2Q Error by Problem")
+    plt.tight_layout()
+    plt.savefig("1Q_vs_2Q_error.png")
+    plt.close()
 
 
 if __name__ == "__main__":
